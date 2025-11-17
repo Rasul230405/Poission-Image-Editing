@@ -40,8 +40,8 @@ function [Laplacian] = Laplacian(X_num, Y_num, Omega, Omega_boundary)
 
     N = X_num*Y_num;
 
-    x_lin = linspace(0, 1, X_num); y_lin = linspace(0, 1, Y_num);
-    h = x_lin(2) - x_lin(1);
+    %x_lin = linspace(0, 1, X_num); y_lin = linspace(0, 1, Y_num);
+    h = 1/(N + 1);
     %h = 1;
 
     Laplacian = zeros(N, N);
@@ -98,6 +98,42 @@ function [result] = boundary_mask(Omega, X_num, Y_num)
 end
 
 
+% conjugate gradient descent
+function [x, residuals] = cgd(A, b, residuals)
+    fprintf("solving by conjugate gradient descent...\n");
+    n = size(A, 2);
+    x = zeros(n, 1);
+    
+    r = b - A*x;
+    d = r;
+    rr = r'*r; 
+    
+    step = 0;
+    for i = 1:n
+        step = step + 1;
+
+        Ad = A*d;
+        alpha = rr / (d'*Ad);
+        x = x + alpha*d;
+        r = r - alpha*Ad;
+        rr_new = r'*r;
+
+        res = sqrt(rr_new);
+        residuals(i) = res;
+        if res < 1e-15
+            break;
+        end
+
+        beta = rr_new / rr;
+        d = r  + beta*d;
+        rr = rr_new;
+
+    end
+
+    residuals((step+1):end) = [];
+    fprintf("conjugate gradient descent finished!\n");
+end
+
 function [MonBean, residuals] = PIE(target, source_region, Omega, top, left, solver, iter)
 
     X_num = size(source_region, 2); Y_num = size(source_region, 1);
@@ -130,6 +166,8 @@ function [MonBean, residuals] = PIE(target, source_region, Omega, top, left, sol
         [u, residuals] = jacobi(A, b, residuals, iter);
     elseif strcmp(solver, 'gauss-seidel')
         [u, residuals] = gauss_seidel(A, b, residuals, iter);
+    elseif strcmp(solver, 'cgd')
+        [u, residuals] = cgd(A'*A, A'*b, residuals);
     else 
         u = A\b;
     end
@@ -148,16 +186,23 @@ end
 
 % solve by jacobi
 [MonaBean, jacobi_residuals] = PIE(MonaLisa, BeanFaceRegion, Omega, top, left, 'jacobi', 5000);
+fprintf("jacobi error: %20.16f\n", jacobi_residuals(1, end));
 subplot(233), imshow(MonaBean); title('Poisson Blended (Jacobi)');
 
 % solve by gauss-seidel
-[MonaBean2, gs_residuals] = PIE(MonaLisa, BeanFaceRegion, Omega, top, left, 'gauss-seidel', 5000);
-subplot(236), imshow(MonaBean2); title('Poisson Blended (Gauss-Seidel)');
+%[MonaBean2, gs_residuals] = PIE(MonaLisa, BeanFaceRegion, Omega, top, left, 'gauss-seidel', 5000);
+%fprintf("gs error: %20.16f\n",gs_residuals(1, end));
+%subplot(236), imshow(MonaBean2); title('Poisson Blended (Gauss-Seidel)');
+
+% solve by cgd
+[MonaBean2, cgd_residuals] = PIE(MonaLisa, BeanFaceRegion, Omega, top, left, 'cgd', 5000);
+fprintf("gs error: %20.16f\n", cgd_residuals(end));
+subplot(236), imshow(MonaBean2); title('Poisson Blended (CGD)');
 
 % plot residuals for jacobi and gauss seidel
 figure;
 subplot(121); plot(jacobi_residuals); title('Jacobi solution'); xlabel("steps"); ylabel("residuals");
-subplot(122); plot(gs_residuals); title('Gauss-Seidel solution'); xlabel("steps"); ylabel("residuals");
+subplot(122); plot(cgd_residuals); title('Gauss-Seidel solution'); xlabel("steps"); ylabel("residuals");
 
 % implement third method PALU maybe?
 % refactor the code if necessary

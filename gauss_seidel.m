@@ -22,7 +22,7 @@ function [x, residuals] = gauss_seidel(A, b, residuals, iter)
     end 
     
     invL = inv(L);
-    step = 1;
+    step = 0;
     for i = 1:iter
 
         step = step + 1;

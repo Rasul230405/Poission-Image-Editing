@@ -11,7 +11,7 @@ function [x, residuals] = jacobi(A, b, residuals, iter)
     g = D\b;
     B = D\LU;
         
-    step = 1;
+    step = 0;
     for i = 1:iter
         
         step = step + 1;
